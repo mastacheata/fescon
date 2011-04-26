@@ -1,0 +1,98 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to add a unique numeric id to each artist.
+  -- Artists added to SAM when an artist id already exists will use the same id.
+  -- Has a 1 second throttle after each processing iteration to prevent a runaway script.
+  -- Run fhr_condition_database.pal to setup necessary columns!
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Manually run every time after adding new songs to SAM.
+
+  fhr_albumid.pal and fhr_artistid.pal can be run at the same time; while SAM is streaming.
+}
+
+// NOTHING TO CONFIGURE!
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+WriteLn( 'Begin fhr_artistid' );
+
+Function lookup_sql( input: String ): String; forward;
+
+var checker : TDataSet = Query( lookup_sql( 'checker' ), [], true );
+
+if ( ( checker = nil ) or ( checker.EOF ) ) then
+  begin
+    WriteLn( 'ERROR fhr_artistid not found; run fhr_condition_database first!' );
+  end
+else
+  begin
+    var artists : TDataSet = Query( lookup_sql( 'get_0_artists' ), [], true );
+    var double_check_id : TDataSet;
+    var next_max_id : TDataSet;
+    var temp_id : Integer = 0;
+    artists.First;
+
+    while not artists.EOF do
+      begin
+        WriteLn( 'Processing: ' + artists['artist'] );
+        double_check_id := Query( lookup_sql( 'double_check_id' ), [ artists['artist'] ], true );
+        if ( double_check_id['max_id'] > 0) then
+          begin
+            WriteLn( 'fhr_artistid already exists: ' + IntToStr( double_check_id['max_id'] ) );
+            temp_id := double_check_id['max_id'];
+          end
+        else
+          begin
+            next_max_id := Query( lookup_sql( 'get_next_max_id' ), [], true );
+            WriteLn( 'Generated new fhr_artistid: ' + IntToStr( next_max_id[ 'max_id' ] ) );
+            temp_id := next_max_id[ 'max_id' ];
+          end;
+        ExecSQL( lookup_sql( 'update_artist' ), [ temp_id, artists['artist'] ] );
+        artists.Next;
+        WriteLn( '************' );
+        PAL.WaitForTime( '+00:00:01' );
+      end;
+    artists.Free;
+    double_check_id.Free;
+    next_max_id.Free;
+  end;
+
+WriteLn( 'End fhr_artistid' );
+
+checker.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    case input of
+              'checker' : result := 'select fhr_artistid from songlist order by rand() limit 1';
+        'get_0_artists' : result := 'select artist from songlist where fhr_artistid = 0 group by artist order by artist asc';
+      'get_next_max_id' : result := 'select max(fhr_artistid)+1 as max_id from songlist';
+      'double_check_id' : result := 'select max(fhr_artistid) as max_id from songlist where artist = :artist';
+        'update_artist' : result := 'update songlist set fhr_artistid = :id where artist = :artist';  end;
+  end;

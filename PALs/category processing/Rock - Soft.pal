@@ -1,0 +1,85 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to empty a category and fill it up based on some SQL.
+  -- Runs completely locked; large categories may cause SAM to "hang" so be patient.
+  -- Supports only MySQL.  See SQL statements at end of PAL.
+
+  Schedule using the Event Scheduler.
+
+  Save as another file, then edit the two configuration variables.
+}
+
+// Enter name of category to manage
+var category_name : String = 'Rock: Soft';
+
+// Enter full SQL select statement here
+var category_sql : String = 'select * from songlist where upper(genre) like upper(''%soft rock%'')';
+
+// EDIT BELOW HERE AT YOUR OWN RISK!
+
+Function lookup_sql( input: String ): String; forward;
+
+WriteLn( 'Processing ' + category_name );
+WriteLn( 'Finding ' + category_name + ' ID' );
+
+var category_data : TDataSet = Query( lookup_sql( 'get_category' ), [ category_name ], true );
+
+if ( ( category_data = nil ) or ( category_data.EOF ) ) then
+  begin
+    WriteLn( '**** ERROR **** Category ' +  category_name + ' not found! **** ERROR **** ' );
+  end
+else
+  begin
+    WriteLn( 'Found ID: ' + IntToStr( category_data['id'] ) );
+
+    WriteLn( 'Clearing category' );
+    ExecSQL( lookup_sql( 'delete_category' ), [ category_data['id'] ] );
+
+    WriteLn( 'Gathering songs for category' );
+    var song_list : TDataSet = Query( category_sql, [], true );
+
+    WriteLn( 'Updating category' );
+    song_list.First;
+    while not song_list.EOF do
+      begin
+        ExecSQL( lookup_sql( 'insert_row' ), [ song_list['id'], category_data['id'] ] );
+        song_list.Next;
+      end;
+    song_list.Free;
+  end;
+
+WriteLn( 'Done' );
+
+category_data.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+         'get_category' : result := 'select id from category where name = :name';
+      'delete_category' : result := 'delete from categorylist where categoryid = :id';
+           'insert_row' : result := 'insert into categorylist ( songid, categoryid ) values ( :songid, :categoryid )';
+    end;
+  end;

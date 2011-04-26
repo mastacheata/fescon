@@ -1,0 +1,97 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to condition album cover art (pictures) down to one per album instead of one per song.
+  -- Requires fhr_albumid values to already be set as that is what the covert art will be named.
+  -- Has a 1 second throttle after each processing iteration to prevent a runaway script.
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+  -- Supports only jpg cover art images.
+
+  After running, delete the SAM generated az_* images in the cover art folder!
+
+  Run only after fhr_albumid.pal has nothing to process.
+  Manually run every time after adding new songs to SAM.
+  Can be run while SAM is streaming.
+
+  FOR A LOT OF SONGS TO PROCESS THIS MAY TAKE AWHILE; LET IT RUN!
+}
+
+// Enter a complete path to SAMs album cover art output.
+// Include a trailing \ or Bad Things may happen.
+var picture_path : String = 'C:\VirtualHosts\festerhead.com\htdocs\coverart\';
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+WriteLn( 'Begin fhr_picture' );
+
+Function lookup_sql( input: String ): String; forward;
+
+var checker : TDataSet = Query( lookup_sql( 'checker' ), [], true );
+
+if ( ( checker = nil ) or ( checker.EOF ) ) then
+  begin
+    WriteLn( 'ERROR fhr_artistid not found; run fhr_condition_database first!' );
+  end
+else
+  begin
+    var data_loop : TDataSet = Query( lookup_sql( 'get_data_loop' ), [], true );
+    data_loop.First;
+
+    while not data_loop.EOF do
+      begin
+        WriteLn( 'Processing: ' + data_loop[ 'artist' ] + ' || ' + data_loop[ 'album' ] );
+
+        if( FileExists( picture_path + data_loop[ 'picture' ] ) and CopyFile( picture_path + data_loop[ 'picture' ], picture_path + IntToStr( data_loop[ 'fhr_albumid' ] ) + '.jpg', false) ) then
+          begin
+            WriteLn( 'Copy successful to: ' + IntToStr( data_loop[ 'fhr_albumid' ] ) + '.jpg' );
+            ExecSQL( lookup_sql( 'update_picture' ), [ IntToStr( data_loop[ 'fhr_albumid' ] ) + '.jpg', data_loop[ 'artist' ], data_loop[ 'album' ] ] );
+          end
+        else
+          begin
+            WriteLn('Error copying: ' + data_loop[ 'picture' ] );
+          end;
+        data_loop.Next;
+        WriteLn( '************' );
+        PAL.WaitForTime( '+00:00:01' );
+      end;
+
+    WriteLn( 'Delete the SAM generated az_* images in the cover art folder!' );
+    data_loop.Free;
+  end;
+
+WriteLn( 'End fhr_picture' );
+
+checker.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+             'checker' : result := 'select fhr_artistid from songlist order by rand() limit 1';
+       'get_data_loop' : result := 'select artist, album, picture, fhr_albumid from songlist where picture <> concat( fhr_albumid, ''.jpg'' ) and fhr_albumid <> 0 group by fhr_albumid order by fhr_albumid';
+      'update_picture' : result := 'update songlist set picture = :picture where artist = :artist and album = :album';
+    end;
+  end;

@@ -1,0 +1,61 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to randomize lines in a clockwheel.
+
+  Schedule using the Event Scheduler.
+  Don't forget to reload the clockwheel manually or with another Event Scheduler action!
+}
+
+// NOTHING TO CONFIGURE!
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Randomize;
+
+var clockwheel : String = 'C:\Program Files\SpacialAudio\FHR\CWFs\default.cwf';
+var counter : Integer = 0;
+var temp_index : Integer = counter;
+var rand_index : Integer = counter;
+var entries : TStringList = TStringList.Create;
+if FileExists( clockwheel ) then
+  begin
+    entries.LoadFromFile( clockwheel );
+    if entries.Count > 0 then
+      begin
+        for  counter := 0 to entries.Count - 1 do
+          begin
+            temp_index := counter;
+            rand_index := RandomInt( entries.Count );
+            entries.Exchange( temp_index, rand_index );
+            WriteLn( 'Exchanged ' + IntToStr( temp_index ) + ' and ' + IntToStr( rand_index ) );
+          end;
+      end;
+    entries.SaveToFile( clockwheel );
+ end;
+
+entries.Destroy;
+entries.Free;
+
+PAL.UnlockExecution;

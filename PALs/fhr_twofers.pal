@@ -1,0 +1,144 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to load xFERS into the system (e.g. twofers, threefers, ...)
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Schedule to start using the Event Scheduler.
+}
+
+// Put your own scheduling here.
+// ********* Begin schedule *******************
+
+PAL.Loop := true;
+Pal.WaitForQueue( 1 );
+
+if DayOfWeek( Date ) <> Tuesday then
+  begin
+    PAL.Loop := false;
+
+    // set Regular Rotation as the active show
+    ExecSQL( 'update fhr_show_info set active = 0', [] );
+    ExecSQL( 'update fhr_show_info set active = 1 where id = 0', [] );
+  end
+else
+  begin
+    // set Twofers as the active show
+    ExecSQL( 'update fhr_show_info set active = 0', [] );
+    ExecSQL( 'update fhr_show_info set active = 1 where id = 1', [] );
+  end;
+
+// ********** End schedule ********************
+
+// What is the name of the category from which potential condidates are selected?
+// In general, supply a category that you use for general rotation such as "Tracks" or "Music (All)"
+// Can be useful if you just want xFERS from specific categories (SAM or user managed) to do themed shows.
+var category_select : String = 'Regular Rotation';
+
+// How many xFERS to do?  Twofers = 2, Threefers = 3, ...
+var num_xfers : Integer = 2;
+
+// Minimum number of available songs to be considered for xFERS.
+// Takes into account the current playlist rule values to get an available song selection count
+var min_songs : Integer = 50;
+
+// Where in the queue to insert the songs?  Use ipTop or ipBottom.
+var queue_position : Integer = ipBottom;
+
+// Run in evaluation mode?  If true then nothing will be added to the queue.
+var eval_mode : Boolean = false;
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+if( eval_mode ) then
+  begin
+    WriteLn( 'Running in EVALUATION MODE' );
+    WriteLn( 'Will not add anything to the queue' );
+    WriteLn( '' );
+  end;
+
+Function lookup_sql( input: String ): String; forward;
+
+var the_artist : TDataSet = Query( lookup_sql( 'get_artist' ), [ PlaylistRules.minArtistTime, PlaylistRules.minAlbumTime, PlaylistRules.minTitleTime, PlaylistRules.minTrackTime, category_select, min_songs ], true );
+
+if ( the_artist.EOF ) then
+  begin
+    WriteLn( '***ERROR***' );
+    WriteLn( 'Did not select an artist' );
+    Writeln( 'Consider turning down the playlist rules requirements or the number of minimum songs needed' );
+    WriteLn( '***ERROR***' );
+  end
+else
+  begin
+    var the_songs : TDataSet = Query( lookup_sql( 'get_songs' ), [ PlaylistRules.minArtistTime, PlaylistRules.minAlbumTime, PlaylistRules.minTitleTime, PlaylistRules.minTrackTime, the_artist['artist'], num_xfers ], true );
+
+    WriteLn( 'Selected: ' + the_artist['artist'] );
+    WriteLn( '' );
+
+    // sanity check the song selection count
+    // this is lame; not the most efficient; possibly get from the SQL?
+    var counter : Integer = 0;
+    the_songs.First;
+    while not the_songs.EOF do
+      begin
+        counter := counter +1;
+        the_songs.Next;
+      end;
+
+    if( counter < num_xfers ) then
+      begin
+        WriteLn( '***ERROR***' );
+        WriteLn( 'Did not meet xFER requirement: ' + IntToStr( num_xfers ) );
+        Writeln( 'Only found: ' + IntToStr( counter ) );
+        WriteLn( '***ERROR***' );
+      end
+    else
+      begin
+        the_songs.First;
+        while not the_songs.EOF do
+          begin
+            WriteLn( 'Title: ' + the_songs['title'] );
+            if( not eval_mode ) then
+              begin
+                Queue.AddFile( the_songs['filename'], queue_position );
+              end;
+            the_songs.Next;
+          end;
+      end;
+
+   the_songs.Free;
+  end;
+
+the_artist.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+          'get_artist' : result := 'select sl.artist, count( sl.title ) as song_count from songlist sl, categorylist cl, category c where sl.date_artist_played < date_sub( now(), interval :artist_time minute ) and sl.date_album_played < date_sub( now(), interval :album_time minute ) and sl.date_title_played < date_sub( now(), interval :title_time minute ) and sl.date_played < date_sub( now(), interval :track_time minute ) and sl.id = cl.songid and cl.categoryid = c.id and c.name = :category group by sl.artist having song_count > :min_songs order by rand() limit 1';
+           'get_songs' : result := 'select distinct title, filename from songlist where date_artist_played < date_sub( now(), interval :artist_time minute ) and date_album_played < date_sub( now(), interval :album_time minute ) and date_title_played < date_sub( now(), interval :title_time minute ) and date_played < date_sub( now(), interval :track_time minute ) and artist in ( :artist ) order by rand() limit :xfers';
+    end;
+  end;

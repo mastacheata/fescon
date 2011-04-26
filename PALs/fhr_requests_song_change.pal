@@ -1,0 +1,75 @@
+PAL.LockExecution;
+PAL.Loop := True;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- Marks songs played within the past hour as removed in the fhr_requests table.
+  -- Removes songs played within the past hour from the Requests category.
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Add as an automatically starting script.
+}
+
+var category_name : String = 'Requests';
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Function lookup_sql( input: String ): String; forward;
+
+var category_data : TDataSet = Query( lookup_sql( 'get_category' ), [ category_name ], true );
+
+if ( ( category_data = nil ) or ( category_data.EOF ) ) then
+  begin
+    WriteLn( '**** ERROR **** Category ' +  category_name + ' not found! **** ERROR **** ' );
+  end
+else
+  begin
+    WriteLn( 'Updating fhr_requests' );
+    ExecSQL( lookup_sql( 'update_table' ), [] );
+
+    WriteLn( 'Deleting from  category_list' );
+    ExecSQL( lookup_sql( 'empty_category' ), [ category_data['id'] ] );
+  end;
+
+category_data.Free;
+
+PAL.UnlockExecution;
+
+PAL.WaitForPlayCount(1);
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+
+    var get_songs      : String = 'select songid from historylist where date_played > date_sub( now(), interval 2 hour )';
+    var update_table   : String = 'update fhr_requests set removed = now() where song_id in ( ' + get_songs + ' ) and removed is null';
+    var get_category   : String = 'select id from category where name = :name';
+    var empty_category : String = 'delete from categorylist where songid in ( ' + get_songs + ' ) and categoryid in ( :category_id )';
+
+    Case input of
+           'get_songs' : result := get_songs;
+        'update_table' : result := update_table;
+        'get_category' : result := get_category;
+      'empty_category' : result := empty_category;
+    end;
+  end;

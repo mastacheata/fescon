@@ -1,0 +1,97 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to reset SAMs playlist rules to random range value to help mix things up.
+
+  Schedule using the Event Scheduler.
+}
+
+// Enter values, in minutes, where value1 <= value2
+// Be reasonable when changing the numbers
+var minimum_album_time_range  : Array of Integer = [ 60, 120 ];
+var minimum_artist_time_range : Array of Integer = [ 60, 120 ];
+var minimum_title_time_range  : Array of Integer = [ 60, 120 ];
+var minimum_track_time_range  : Array of Integer = [ 240, 720 ];
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Function randomize_rule(the_ranges : Array of Integer; the_rule : String) : Boolean; forward;
+
+// These return a boolean, but no need to check it; the output contains the status
+randomize_rule( minimum_album_time_range,  'album' );
+randomize_rule( minimum_artist_time_range,  'artist' );
+randomize_rule( minimum_title_time_range,  'title' );
+randomize_rule( minimum_track_time_range,  'track' );
+
+PAL.UnlockExecution;
+
+Function randomize_rule(the_ranges : Array of Integer; the_rule : String) : Boolean;
+  begin
+    var calculation : Integer = 0;
+    Result := false;
+    calculation := StrToInt( FloatToStr( Int( Random * ( the_ranges[1] - the_ranges[0] + 1 ) + the_ranges[0] ) ) );;
+    if ( ( the_ranges.length = 2 ) and ( the_ranges[0] <= the_ranges[1] ) ) then
+      begin
+        Randomize;
+        case the_rule of
+          'album' :
+            begin
+              WriteLn( 'Old Minimum album time: ' + IntToStr( PlaylistRules.minAlbumTime ) + ' minutes ' );
+              PlaylistRules.minAlbumTime := calculation;
+              WriteLn( 'New Minimum album time: ' + IntToStr( PlaylistRules.minAlbumTime ) + ' minutes ' );
+              WriteLn( '' );
+            end;
+          'artist' :
+            begin
+              WriteLn( 'Old Minimum artist time: ' + IntToStr( PlaylistRules.minArtistTime ) + ' minutes ' );
+              PlaylistRules.minArtistTime := calculation;
+              WriteLn( 'New Minimum artist time: ' + IntToStr( PlaylistRules.minArtistTime ) + ' minutes ' );
+              WriteLn( '' );
+            end;
+          'title' :
+            begin
+              WriteLn( 'Old Minimum title time: ' + IntToStr( PlaylistRules.minTitleTime ) + ' minutes ' );
+              PlaylistRules.minTitleTime := calculation;
+              WriteLn( 'New Minimum title time: ' + IntToStr( PlaylistRules.minTitleTime ) + ' minutes ' );
+              WriteLn( '' );
+            end;
+          'track' :
+            begin
+              WriteLn( 'Old Minimum track time: ' + IntToStr( PlaylistRules.minTrackTime ) + ' minutes ' );
+              PlaylistRules.minTrackTime := calculation;
+              WriteLn( 'New Minimum track time: ' + IntToStr( PlaylistRules.minTrackTime ) + ' minutes ' );
+              WriteLn( '' );
+            end;
+          else WriteLn( 'Invalid case ordinal.' );
+        end;
+
+        Result := true;
+      end
+    else
+      begin
+        WriteLn( 'Failed to randomize PlaylistRule for ' + the_rule );
+        WriteLn( 'Either the Array does not have 2 elements or element[1] is not <= element[2]' );
+        WriteLn( '' );
+      end;
+  end;

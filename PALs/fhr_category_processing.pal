@@ -1,0 +1,119 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to empty a category and fill it up based on some SQL.
+  -- Runs completely locked; large categories may cause SAM to "hang" so be patient.
+  -- Only processes if the category has different number of songs than the SQL.
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Schedule using the Event Scheduler.
+
+  Save as another file, then edit the two configuration variables.
+}
+
+// Enter name of category to manage
+var category_name : String = '';
+
+// Enter full SQL select statement here
+var category_sql : String = '';
+
+// Run all the time?  Even when the number of results from the SQL matches the category count?
+// This is useful when the SQL has a limit on it always returning the same count.
+var run_all_time : Boolean = false;
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Function lookup_sql( input: String ): String; forward;
+
+WriteLn( 'Processing category: ' + category_name );
+WriteLn( 'Finding ID for category: ' + category_name );
+
+var category_data : TDataSet = Query( lookup_sql( 'get_category' ), [ category_name ], true );
+
+if ( ( category_data = nil ) or ( category_data.EOF ) ) then
+  begin
+    WriteLn( '**** ERROR **** Category ' +  category_name + ' not found! **** ERROR **** ' );
+  end
+else
+  begin
+    WriteLn( 'Found ID: ' + IntToStr( category_data['id'] ) );
+    var need_to_do_work : Boolean = false;
+
+    if ( run_all_time ) then
+      begin
+        need_to_do_work := true;
+      end
+    else
+      begin
+        WriteLn( 'Checking to see if any work needs to be done...' );
+        var category_count : TDataSet = Query( lookup_sql( 'category_count' ), [ category_name ], true );
+        var sql_count : TDataSet = Query( lookup_sql( 'sql_count_1' ) + category_sql + lookup_sql( 'sql_count_2' ), [ ], true );
+        if ( sql_count['sql_count'] = category_count['category_count'] ) then
+          begin
+            WriteLn( 'Category contains the same number of songs as SQL.  No need to do any work!' );
+          end
+        else
+          begin
+            WriteLn( 'Category contains different number of songs as SQL.  Need to do work!' );
+            need_to_do_work := true;
+          end;
+        category_count.Free;
+        sql_count.Free;
+     end;
+
+    if ( need_to_do_work ) then
+      begin
+        WriteLn( 'Clearing category...' );
+        ExecSQL( lookup_sql( 'delete_category' ), [ category_data['id'] ] );
+        WriteLn( 'Gathering and inserting songs for category...' );
+        var song_list : TDataSet = Query( category_sql, [], true );
+        song_list.First;
+        while not song_list.EOF do
+          begin
+            ExecSQL( lookup_sql( 'insert_row' ), [ song_list['id'], category_data['id'] ] );
+            song_list.Next;
+          end;
+        song_list.Free;
+      end;
+
+  end;
+
+WriteLn( 'Done.' );
+
+category_data.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+         'get_category' : result := 'select id from category where name = :name';
+       'category_count' : result := 'select count(*) as category_count from category c, categorylist cl where c.id = cl.categoryid and c.name = :name';
+          'sql_count_1' : result := 'select count(*) as sql_count from ( ';
+          'sql_count_2' : result := ' ) as temp';
+      'delete_category' : result := 'delete from categorylist where categoryid = :id';
+           'insert_row' : result := 'insert into categorylist ( songid, categoryid ) values ( :songid, :categoryid )';
+    end;
+  end;
