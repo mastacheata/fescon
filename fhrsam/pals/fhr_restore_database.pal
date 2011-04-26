@@ -1,0 +1,148 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- Removes "fhr_" added database components.
+  -- DOES NOT RESTORE ANY SAM DATA COLUMNS THAT WERE CHANGED!
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Every database addition is prefixed with "fhr_" to make it easy to locate.
+
+  Can be run while SAM is streaming.
+}
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Function lookup_sql( input: String ): String; forward;
+
+if ( OkCancelDlg( 'Do you REALLY want to REMOVE the fhr_ components from the database?' ) ) then
+  begin
+    WriteLn( 'Begin fhr_restore_database' );
+    WriteLn( '*******************************************' );
+
+    var checker : TDataSet = Query( lookup_sql( 'checker' ), [], true );
+
+    if ( ( checker = nil ) or ( checker.EOF ) ) then
+      begin
+        WriteLn( 'The above ERROR is OK; It means there is nothing to do.' );
+        WriteLn( '*******************************************' );
+        WriteLn( 'Database already restored or doesn't need restoring.' );
+        WriteLn( 'Doing nothing.' );
+      end
+    else
+      begin
+        WriteLn( 'Removing fhr_ additions...' );
+        WriteLn( '  songlist...' );
+        ExecSQL( lookup_sql( 'alter_songlist' ), [] );
+        WriteLn( '  categorylist...' );
+        ExecSQL( lookup_sql( 'alter_categorylist' ), [] );
+        WriteLn( '  eventtime...' );
+        ExecSQL( lookup_sql( 'alter_eventtime' ), [] );
+        WriteLn( '  requestlist...' );
+        ExecSQL( lookup_sql( 'alter_requestlist' ), [] );
+        WriteLn( '  historylist...' );
+        ExecSQL( lookup_sql( 'alter_historylist' ), [] );
+        WriteLn( '  fhr_tables...' );
+        ExecSQL( lookup_sql( 'drop_fhr_tables' ), [] );
+        WriteLn( '  fhr_views...' );
+        ExecSQL( lookup_sql( 'drop_fhr_views' ), [] );
+        WriteLn( 'Done' );
+      end;
+
+    WriteLn( '*******************************************' );
+    WriteLn( 'End fhr_restore_database' );
+
+    checker.Free;
+  end
+else
+  begin
+    WriteLn( 'Doing nothing.' );
+  end;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+                 'checker' : result := 'select fhr_artistid from songlist order by rand() limit 1';
+
+          'alter_songlist' : result := 'alter table songlist drop column fhr_artistid, drop column fhr_albumid, drop index fhr_art_alb_idx, drop index fhr_artistid_idx, drop index fhr_albumid_idx, drop index fhr_songtype_idx, drop index fhr_album_idx, drop index fhr_artist_idx, drop index fhr_title_play_idx, drop index fhr_pic_alb_idx, drop index fhr_rat_alb_idx, drop index fhr_dates1_idx, drop index fhr_dates2_idx';
+      'alter_categorylist' : result := 'alter table categorylist drop index fhr_song_cat_idx, drop index fhr_song_idx';
+         'alter_eventtime' : result := 'alter table eventtime drop index fhr_eventid_idx';
+       'alter_requestlist' : result := 'alter table requestlist drop index fhr_song_idx, drop index fhr_status_idx, drop index fhr_host_idx, drop index fhr_code_idx, drop index fhr_code_status_idx';
+       'alter_historylist' : result := 'alter table historylist drop index fhr_songid_idx, drop index fhr_date_played_idx';
+
+         'drop_fhr_tables' : result := 'drop table if exists fhr_festerisms, fhr_show_history, fhr_show_info, fhr_amazon_asin, fhr_moved_songs, fhr_song_ratings, fhr_requests';
+          'drop_fhr_views' : result := 'drop view if exists fhr_coming_up_view, fhr_current_show_view, fhr_festerism_view, fhr_now_playing_view, fhr_recently_played_view, fhr_amazon_asin_not_found_view, fhr_schedule_view';
+
+    end;
+  end;
+
+{
+  Summary of database changes.
+
+  songlist drop column fhr_artistid
+           drop column fhr_albumid
+           drop index fhr_art_alb_idx
+           drop index fhr_artistid_idx
+           drop index fhr_albumid_idx
+           drop index fhr_songtype_idx
+           drop index fhr_album_idx
+           drop index fhr_artist_idx
+           drop index fhr_title_play_idx
+           drop index fhr_pic_alb_idx
+           drop index fhr_rat_alb_idx
+           drop index fhr_dates1_idx
+           drop index fhr_dates2_idx
+
+  categorylist drop index fhr_song_cat_idx
+               drop index fhr_song_idx
+
+  eventtime drop index fhr_eventid_idx
+
+  requestlist drop index fhr_song_idx
+              drop index fhr_status_idx
+              drop index fhr_host_idx
+              drop index fhr_code_idx
+              drop index fhr_code_status_idx
+
+  historylist drop index fhr_songid_idx
+              drop index fhr_date_played_idx
+
+  drop table fhr_festerisms
+             fhr_show_history
+             fhr_show_info
+             fhr_amazon_asin
+             fhr_moved_songs
+             fhr_song_ratings
+             fhr_requests
+
+  drop view fhr_coming_up_view
+            fhr_current_show_view
+            fhr_festerism_view
+            fhr_now_playing_view
+            fhr_recently_played_view
+            fhr_amazon_asin_not_found_view
+            fhr_schedule_view
+}

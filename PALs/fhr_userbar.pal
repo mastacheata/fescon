@@ -1,0 +1,77 @@
+PAL.LockExecution;
+PAL.Loop := True;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- Rotates a userbar image.
+  -- Steps to setup:
+      -- Place images 1.jpg, 2.jpg, .... into userbar directory
+      -- Create a userbar.txt file in userbar directory
+      -- Edit userbar.txt and put a 1 in it; save; close
+      -- Rename 1.jpg to userbar.jpg
+      -- Add PAL to SAM; set to run automatically on startup
+      -- Run the PAL
+      -- Enjoy rotated images
+
+  Add as an automatically starting script.
+}
+
+var numberOfUserbars : Integer = 38;
+var userbarDirectory : String = 'C:\VirtualHosts\festerhead.com\htdocs\userbars';
+var activeUserbar : String = 'userbar';
+var userbarExtension : String = '.jpg';
+var userbarTextFile : String = 'userbar.txt';
+var timeToWait : String = '+02:00:00';
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+Randomize;
+
+SetCurrentDir( userbarDirectory );
+
+var userbarToUse : String = IntToStr( RandomInt( numberOfUserbars ) + 1 );
+WriteLn( 'Userbar to use: ' + userbarToUse );
+
+// reset prior userbar
+var priorUserbar : String = Trim( LoadStringFromFile( userbarTextFile ) );
+WriteLn( 'Prior userbar: ' + priorUserbar );
+if ( not RenameFile( activeUserbar + userbarExtension, priorUserbar + userbarExtension ) ) then
+  begin
+    WriteLn( 'Unable to reset prior userbar' );
+  end
+else
+  begin
+    // set this userbar
+    if ( not RenameFile( userbarToUse + userbarExtension, activeUserbar + userbarExtension ) ) then
+      begin
+        WriteLn( 'Unable to set new userbar' );
+      end
+    else
+      begin
+        SaveStringToFile( userbarTextFile, userbarToUse );
+      end;
+  end;
+
+PAL.UnlockExecution;
+
+PAL.WaitForTime( T[timeToWait] );

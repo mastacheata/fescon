@@ -1,0 +1,309 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to "condition" the SAM database.
+  -- Alters columns for varchar, floats, additional indexes; NOT OPTIONAL.
+  -- Adds support for FesterHead's artist and album IDs.
+  -- Supports only MySQL.  See SQL statements at end of PAL for the curious.
+
+  Every database addition is prefixed with "fhr_" to make it easy to locate.
+
+  Should only ever need to be run once.  Can be run while SAM is streaming.
+}
+
+// What is the initial Festerism?
+// Festerisms are little witty sayings that may be used in images and on the site.
+var initial_festerism : String = 'FesterHead is cool!';
+
+// What is the name of the default show?
+var default_show_title : String = 'Regular Rotation';
+
+// What is the description of the default show?
+var default_show_description : String = 'FesterBot selections and listener requests';
+
+// What songtypes should be used to display the now playing song?
+// Best to leave this as-is.
+// Multiple songtypes may work but not tested nor supported.  Try at your own risk.
+var now_playing_song_type : String = 'S';
+
+// Number of songs to include in the coming up list
+var coming_up_count : Integer = 5;
+
+// Number of songs to show in the recently played list
+var recently_play_count : Integer = 20;
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+WriteLn( 'Begin fhr_condition_database' );
+WriteLn( '*******************************************' );
+
+Function lookup_sql( input: String ): String; forward;
+
+var checker : TDataSet = Query( lookup_sql( 'checker' ), [], true );
+
+if ( ( checker = nil ) or ( checker.EOF ) ) then
+  begin
+    WriteLn( 'The above ERROR is OK; It signals the PAL to run.' );
+    WriteLn( '*******************************************' );
+
+    WriteLn( 'Altering songlist for FHR components...' );
+    ExecSQL( lookup_sql( 'alter_songlist_fhr' ), [] );
+    WriteLn( 'Done' );
+    WriteLn( '*******************************************' );
+
+    WriteLn( 'Creating FHR tables...' );
+    WriteLn( '  fhr_festerisms...' );
+    ExecSQL( lookup_sql( 'create_fhr_festerisms' ), [] );
+    WriteLn( '  fhr_show_history...' );
+    ExecSQL( lookup_sql( 'create_fhr_show_history' ), [] );
+    WriteLn( '  fhr_show_info...' );
+    ExecSQL( lookup_sql( 'create_fhr_show_info' ), [] );
+    WriteLn( '  fhr_amazon_asin...' );
+    ExecSQL( lookup_sql( 'create_fhr_amazon_asin' ), [] );
+    WriteLn( '  fhr_moved_songs...' );
+    ExecSQL( lookup_sql( 'create_fhr_moved_songs' ), [] );
+    WriteLn( '  fhr_song_ratings...' );
+    ExecSQL( lookup_sql( 'create_fhr_song_ratings' ), [] );
+    WriteLn( '  fhr_requests...' );
+    ExecSQL( lookup_sql( 'create_fhr_requests' ), [] );
+    WriteLn( 'Done' );
+    WriteLn( '*******************************************' );
+
+    WriteLn( 'Creating FHR views...' );
+    WriteLn( '  fhr_coming_up_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_coming_up_view' ), [ coming_up_count ] );
+    WriteLn( '  fhr_current_show_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_current_show_view' ), [] );
+    WriteLn( '  fhr_festerism_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_festerism_view' ), [] );
+    WriteLn( '  fhr_now_playing_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_now_playing_view' ), [ now_playing_song_type ] );
+    WriteLn( '  fhr_recently_played_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_recently_played_view' ), [ recently_play_count ] );
+    WriteLn( '  fhr_amazon_asin_not_found_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_amazon_asin_not_found_view' ), [] );
+    WriteLn( '  fhr_schedule_view...' );
+    ExecSQL( lookup_sql( 'create_fhr_schedule_view' ), [] );
+    WriteLn( 'Done' );
+    WriteLn( '*******************************************' );
+
+    WriteLn( 'Inserting default data...' );
+    WriteLn( '  fhr_festerisms...' );
+    ExecSQL( lookup_sql( 'insert_fhr_festerisms' ), [ initial_festerism ] );
+    WriteLn( '  fhr_show_info...' );
+    ExecSQL( lookup_sql( 'insert_fhr_show_info' ), [ default_show_title, default_show_description ] );
+    WriteLn( 'Done' );
+    WriteLn( '*******************************************' );
+
+    WriteLn( 'Modifying SAM tables...' );
+    WriteLn( '  adz...' );
+    ExecSQL( lookup_sql( 'alter_adz' ), [] );
+    WriteLn( '  category...' );
+    WriteLn( '    dropping existing index(es)...' );
+    ExecSQL( lookup_sql( 'alter_category1' ), [] );
+    WriteLn( '    modify table...' );
+    ExecSQL( lookup_sql( 'alter_category2' ), [] );
+    WriteLn( '    re-add index(es)...' );
+    ExecSQL( lookup_sql( 'alter_category3' ), [] );
+    WriteLn( '  categorylist...' );
+    ExecSQL( lookup_sql( 'alter_categorylist' ), [] );
+    WriteLn( '  disk...' );
+    ExecSQL( lookup_sql( 'alter_disk' ), [] );
+    WriteLn( '  event...' );
+    ExecSQL( lookup_sql( 'alter_event' ), [] );
+    WriteLn( '  eventtime...' );
+    ExecSQL( lookup_sql( 'alter_eventtime' ), [] );
+    WriteLn( '  requestlist...' );
+    ExecSQL( lookup_sql( 'alter_requestlist' ), [] );
+    WriteLn( '  queuelist...' );
+    ExecSQL( lookup_sql( 'alter_queuelist' ), [] );
+    WriteLn( '  songlist...' );
+    WriteLn( '    dropping existing index(es)...' );
+    ExecSQL( lookup_sql( 'alter_songlist1' ), [] );
+    WriteLn( '    modify table...' );
+    ExecSQL( lookup_sql( 'alter_songlist2' ), [] );
+    WriteLn( '    re-add index(es)...' );
+    ExecSQL( lookup_sql( 'alter_songlist3' ), [] );
+    WriteLn( '  historylist...' );
+    ExecSQL( lookup_sql( 'alter_historylist1' ), [] );
+    ExecSQL( lookup_sql( 'alter_historylist2' ), [] );
+    WriteLn( 'Done' );
+  end
+else
+  begin
+    WriteLn( 'Database already conditioned.' );
+    WriteLn( 'Doing nothing.' );
+  end;
+
+WriteLn( '*******************************************' );
+WriteLn( 'End fhr_condition_database' );
+
+checker.Free;
+
+PAL.UnlockExecution;
+
+Function lookup_sql( input: String ): String;
+  begin
+    result := 'ERROR!  No SQL statement match for: ' + input;
+    Case input of
+                              'checker' : result := 'select fhr_artistid from songlist order by rand() limit 1';
+
+                   'alter_songlist_fhr' : result := 'alter table songlist add column fhr_artistid integer unsigned not null default 0 after artist, add column fhr_albumid integer unsigned not null default 0 after album, add index fhr_art_alb_idx( fhr_artistid, fhr_albumid ), add index fhr_artistid_idx( fhr_artistid ), add index fhr_albumid_idx( fhr_albumid )';
+
+                            'alter_adz' : result := 'alter table adz modify column localfilename varchar( 255 ), modify column download_url varchar( 255 ), modify column description varchar( 255 ), modify column days varchar( 255 ), modify column hours varchar( 255 ), modify column syncinfo varchar( 255 )';
+
+                      'alter_category1' : result := 'alter table category drop index name';
+                      'alter_category2' : result := 'alter table category modify column name varchar( 255 )';
+                      'alter_category3' : result := 'alter table category add index name( name )';
+
+                   'alter_categorylist' : result := 'alter table categorylist add index fhr_song_cat_idx( songid, categoryid ), add index fhr_song_idx( songid )';
+
+                           'alter_disk' : result := 'alter table disk modify column serial varchar( 255 ), modify column name varchar( 255 )';
+
+                          'alter_event' : result := 'alter table event modify column name varchar( 255 ), modify column eventaction varchar( 255 )';
+
+                      'alter_eventtime' : result := 'alter table eventtime add index fhr_eventid_idx( eventid )';
+
+                    'alter_requestlist' : result := 'alter table requestlist modify column host varchar( 255 ), modify column name varchar( 255 ), add index fhr_song_idx( songid ), add index fhr_status_idx( status ), add index fhr_host_idx( host ), add index fhr_code_idx( code ), add index fhr_code_status_idx( code, status )';
+
+                      'alter_queuelist' : result := 'alter table queuelist modify column auxdata varchar( 255 ) default null';
+
+                      'alter_songlist1' : result := 'alter table songlist drop index filename';
+                      'alter_songlist2' : result := 'alter table songlist modify column rating float not null default 0, modify column filename varchar( 255 ), modify column artist varchar( 255 ), modify column album varchar( 255 ), modify column title varchar( 255 ), modify column label varchar( 255 ), modify column albumyear varchar( 255 ), modify column website varchar( 255 ), modify column buycd varchar( 255 ), modify column pline varchar( 255 ), modify column composer varchar( 255 ), modify column isrc varchar( 255 ), modify column catalog varchar( 255 ), modify column upc varchar( 255 ), modify column feeagency varchar( 255 ), modify column genre varchar( 255 ), modify column picture varchar( 255 ), modify column xfade varchar( 255 ), modify column mood varchar( 255 )';
+                      'alter_songlist3' : result := 'alter table songlist add index filename( filename ), add index fhr_songtype_idx( songtype ), add index fhr_album_idx( album ), add index fhr_artist_idx( artist ), add index fhr_title_play_idx( date_title_played ), add index fhr_pic_alb_idx( picture, fhr_albumid ), add index fhr_rat_alb_idx( rating, fhr_albumid ), add index fhr_dates1_idx( date_played, date_artist_played, date_album_played, date_title_played ), add index fhr_dates2_idx( date_played, date_artist_played, date_album_played, date_title_played, artist )';
+
+                   'alter_historylist1' : result := 'alter table historylist modify column label varchar( 255 ), modify column filename varchar( 255 ), modify column artist varchar( 255 ), modify column album varchar( 255 ), modify column title varchar( 255 ), modify column albumyear varchar( 255 ), modify column website varchar( 255 ), modify column buycd varchar( 255 ), modify column picture varchar( 255 ), modify column pline varchar( 255 ), modify column composer varchar( 255 ), modify column isrc varchar( 255 ), modify column catalog varchar( 255 ), modify column upc varchar( 255 ), modify column feeagency varchar( 255 )';
+                   'alter_historylist2' : result := 'alter table historylist add index fhr_songid_idx( songid ), add index fhr_date_played_idx( date_played )';
+
+                'create_fhr_festerisms' : result := 'create table if not exists fhr_festerisms ( id integer unsigned not null auto_increment, festerism text not null, primary key ( id ) ) engine = myisam';
+              'create_fhr_show_history' : result := 'create table if not exists fhr_show_history ( id integer unsigned not null auto_increment, show_id integer unsigned not null, date_played datetime not null, selections text not null, primary key ( id ), index date_played_idx ( date_played ), index show_idx ( show_id ) ) engine = myisam';
+                 'create_fhr_show_info' : result := 'create table if not exists fhr_show_info ( id integer unsigned not null, title text not null, description text not null, forum_id integer unsigned not null default 0, active integer unsigned not null default 0, primary key ( id ), index title_idx ( title ( 50 ) ) ) engine = myisam';
+               'create_fhr_amazon_asin' : result := 'create table if not exists fhr_amazon_asin ( fhr_albumid integer unsigned not null, amazon_asin text not null, amazon_url text, primary key ( fhr_albumid ), index fhr_albumid_idx ( fhr_albumid ), index amazon_asin_idx ( amazon_asin ( 50 ) ) ) engine = myisam';
+               'create_fhr_moved_songs' : result := 'create table if not exists fhr_moved_songs ( id integer unsigned not null auto_increment, mode integer unsigned not null, type integer unsigned not null, song_id integer unsigned not null, user_id integer unsigned not null, date_changed datetime not null, primary key ( id ), index song_id_idx ( song_id ), index user_id_idx ( user_id ) ) engine = myisam';
+              'create_fhr_song_ratings' : result := 'create table if not exists fhr_song_ratings ( song_id integer unsigned not null, user_id integer unsigned not null, rating integer unsigned not null, date_time datetime not null, primary key ( song_id, user_id ), index rating_idx ( rating ), index song_id_idx ( song_id ), index user_id_idx ( user_id ) ) engine = myisam';
+                  'create_fhr_requests' : result := 'create table if not exists fhr_requests ( id integer unsigned not null auto_increment, song_id integer unsigned not null, user_id integer unsigned not null, requested datetime not null, removed datetime, primary key ( id ), index song_id_idx ( song_id ), index user_id_idx ( user_id ) ) engine = myisam';
+
+            'create_fhr_coming_up_view' : result := 'create or replace view fhr_coming_up_view as select s.*, q.requests, q.requestid from songlist s, queuelist q where q.songid = s.id order by q.sortid limit :coming_up_count';
+         'create_fhr_current_show_view' : result := 'create or replace view fhr_current_show_view as select * from fhr_show_info where active = 1';
+            'create_fhr_festerism_view' : result := 'create or replace view fhr_festerism_view as select * from fhr_festerisms order by rand() limit 1';
+          'create_fhr_now_playing_view' : result := 'create or replace view fhr_now_playing_view as select s.*, now() as database_time from songlist s, historylist h where s.id = h.songid and s.songtype in ( :song_type_restriction ) order by h.id desc limit 1';
+      'create_fhr_recently_played_view' : result := 'create or replace view fhr_recently_played_view as select s.*, h.date_played as h_date_played, h.listeners as h_listeners, h.requestid as h_requestid from historylist h, songlist s where h.songid = s.id order by h.id desc limit 1, :recently_played_count';
+'create_fhr_amazon_asin_not_found_view' : result := 'create or replace view fhr_amazon_asin_not_found_view as select concat_ws( ''|'', s.artist, s.album ) as artist_album, s.* from songlist s, fhr_amazon_asin a where s.fhr_albumid = a.fhr_albumid and a.amazon_asin = ''NOT FOUND'' group by artist_album order by s.fhr_albumid';
+             'create_fhr_schedule_view' : result := 'create or replace view fhr_schedule_view as select e.*, et.eventtime, et.eventdate, et.eventday, et.recurring from event e, eventtime et where e.id = et.eventid';
+
+                'insert_fhr_festerisms' : result := 'insert into fhr_festerisms ( festerism ) values ( :festerism )';
+                 'insert_fhr_show_info' : result := 'insert into fhr_show_info ( id, title, description, forum_id, active ) values ( 0, :show_title, :show_description, 0, 1 )';
+
+    end;
+  end;
+
+{
+  Summary of database changes.
+
+  songlist add column fhr_artistid integer unsigned not null default 0 after artist
+           add column fhr_albumid integer unsigned not null default 0 after album
+           add index fhr_art_alb_idx( fhr_artistid, fhr_albumid )
+           add index fhr_artistid_idx( fhr_artistid )
+           add index fhr_albumid_idx( fhr_albumid )
+
+  adz modify column localfilename varchar( 255 )
+      modify column download_url varchar( 255 )
+      modify column description varchar( 255 )
+      modify column days varchar( 255 )
+      modify column hours varchar( 255 )
+      modify column syncinfo varchar( 255 )
+
+  category drop index name
+           modify column name varchar( 255 )
+           add index name( name )
+
+  categorylist add index fhr_song_cat_idx( songid, categoryid )
+               add index fhr_song_idx( songid )
+
+  disk modify column serial varchar( 255 )
+       modify column name varchar( 255 )
+
+  event modify column name varchar( 255 )
+        modify column eventaction varchar( 255 )
+
+  eventtime add index fhr_eventid_idx( eventid )
+
+  requestlist modify column host varchar( 255 )
+              modify column name varchar( 255 )
+              add index fhr_song_idx( songid )
+              add index fhr_status_idx( status )
+              add index fhr_host_idx( host )
+              add index fhr_code_idx( code )
+              add index fhr_code_status_idx( code, status )
+
+  queuelist modify column auxdata varchar( 255 ) default null
+
+  songlist drop index filename
+           modify column rating float not null default 0
+           modify column filename varchar( 255 )
+           modify column artist varchar( 255 )
+           modify column album varchar( 255 )
+           modify column title varchar( 255 )
+           modify column label varchar( 255 )
+           modify column albumyear varchar( 255 )
+           modify column website varchar( 255 )
+           modify column buycd varchar( 255 )
+           modify column pline varchar( 255 )
+           modify column composer varchar( 255 )
+           modify column isrc varchar( 255 )
+           modify column catalog varchar( 255 )
+           modify column upc varchar( 255 )
+           modify column feeagency varchar( 255 )
+           modify column genre varchar( 255 )
+           modify column picture varchar( 255 )
+           modify column xfade varchar( 255 )
+           modify column mood varchar( 255 )
+           add index filename( filename )
+           add index fhr_songtype_idx( songtype )
+           add index fhr_album_idx( album )
+           add index fhr_artist_idx( artist )
+           add index fhr_title_play_idx( date_title_played )
+           add index fhr_pic_alb_idx( picture, fhr_albumid )
+           add index fhr_rat_alb_idx( rating, fhr_albumid )
+           add index fhr_dates1_idx( date_played, date_artist_played, date_album_played, date_title_played )
+           add index fhr_dates2_idx( date_played, date_artist_played, date_album_played, date_title_played, artist )
+
+  historylist modify column label varchar( 255 )
+              modify column filename varchar( 255
+              modify column artist varchar( 255 )
+              modify column album varchar( 255 )
+              modify column title varchar( 255
+              modify column albumyear varchar( 255 )
+              modify column website varchar( 255 )
+              modify column buycd varchar( 255 )
+              modify column picture varchar( 255 )
+              modify column pline varchar( 255 )
+              modify column composer varchar( 255 )
+              modify column isrc varchar( 255 )
+              modify column catalog varchar( 255 )
+              modify column upc varchar( 255 )
+              modify column feeagency varchar( 255 )
+              add index fhr_songid_idx( songid )
+              add index fhr_date_played_idx( date_played )
+}

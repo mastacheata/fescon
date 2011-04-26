@@ -1,0 +1,38 @@
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- Simple PAL to kick off PHP now playing image generator.
+}
+
+// What is the url to kick off the process?
+var url_to_access : String = 'http://www.festerhead.com/nowplayingimage.php';
+
+// How many songs to wait before running again? 1 = every song change
+var songs_to_wait : Integer = 1;
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+PAL.Loop := true;
+PAL.LockExecution;
+WriteLn( WebToStr( url_to_access ) );
+PAL.UnLockExecution;
+PAL.WaitForPlayCount( songs_to_wait );

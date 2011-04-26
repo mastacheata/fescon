@@ -1,0 +1,97 @@
+PAL.LockExecution;
+
+{
+  ********************************************************
+  *
+  * Copyright (C) Steve Kunitzer (FesterHead)
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  ********************************************************
+
+  -- PAL to add the top-most song of a category or the entire category to the queue
+  -- Supports only MySQL.
+
+  Recommended to schedule using the Event Scheduler.
+  Save as another file, then edit the configuration variables
+}
+
+//**********
+// Enter name of category to manage
+var category_name : String = '';
+//**********
+
+//**********
+// Where in the queue to add the song?
+// Valid settings are: ipTop or ipBottom
+var queue_position : Integer = ipTop;
+//**********
+
+//**********
+// If true;   all songs from the category will be added to the queue
+//            the category will remain in the same order
+
+// otherwise; only the top-most song from the category will be added
+//            that song will then move to the bottom of the category
+var add_all_songs : Boolean = false;
+//**********
+
+//**********
+// Set to false to actually add the songs to the category
+// Will still move the top-most song to the bottom of the ctaegory when not add_all_songs is false
+var debug : Boolean = true;
+//**********
+
+// *******************************************
+// * STOP! EDIT BELOW HERE AT YOUR OWN RISK! *
+// *******************************************
+
+var counter : Integer = 0;
+
+// get a list of songs in the category
+var the_category : TDataSet = CAT[ category_name ].SongList;
+
+// make sure pointer is at the top of the data set
+the_category.First;
+
+while not the_category.EOF do
+  begin
+    counter := counter + 1;
+    // write the song info to the screen
+    WriteLn( '**********' );
+    WriteLn( 'Artist: ' + the_category['artist'] );
+    WriteLn( 'Album: ' + the_category['album'] );
+    WriteLn( 'title: ' + the_category['title'] );
+    if ( not debug ) then
+      begin
+        // add song to queue top
+        Queue.AddFile( the_category['filename'], queue_position );
+      end;
+    if ( ( counter = 1 ) and ( not add_all_songs ) ) then
+      begin
+        // remove the song from the category
+        ExecSQL( 'delete from categorylist where songid in ( :id ) and categoryid in ( select id from category where name = :name )', [ the_category['id'], category_name ] );
+        // add the song to the category at the end
+        CAT[ category_name ].AddFile( the_category['filename'], ipBottom );
+        if ( not add_all_songs ) then
+          begin
+             the_category.Last;
+          end;
+      end;
+ the_category.Next;
+end;
+
+
+PAL.UnlockExecution;
+the_category.Free;
