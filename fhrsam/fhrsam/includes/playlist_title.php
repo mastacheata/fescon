@@ -46,7 +46,6 @@
     <div style="text-align: center;"><?php _e( $buy_fromAmazon ); ?></div>
     <hr/>
     <b>Genre:</b> <?php _e( $genre1[0] ); ?>
-    <?php ( count( $genre2 ) > 0 ) ? disp_genres( $genre2 ) : _e( "n/a" ); ?>
     <hr/>
     <b>Categories:</b>
     <?php disp_categories( $categories ); ?>
@@ -59,7 +58,6 @@
     <?php if(strlen($now_playing["composer"]) > 0) { ?>
       <div class="fhrsam_plugin_row"><span class="label">Composer:</span><span class="sepa">&nbsp;</span><span class="formw"><?php _e( $the_song["composer"] ); ?></span></div>
     <?php } ?>
-    <div class="fhrsam_plugin_row"><span class="label">Rating:</span><span class="sepa">&nbsp;</span><span class="formw"><?php ( $now_playing["rating"] <= 0 ) ? _e( $amazon_rating ) : _e( $the_song["rating"] ); ?></span></div>
     <div class="fhrsam_plugin_row"><span class="label">Duration:</span><span class="sepa">&nbsp;</span><span class="formw"><?php _e( convert_duration( $the_song["duration"] ) ); ?></span></div>
     <div class="fhrsam_plugin_row"><span class="label">Year:</span><span class="sepa">&nbsp;</span><span class="formw"><?php _e( $the_song["albumyear"] ); ?></span></div>
     <br/>
@@ -79,10 +77,6 @@
     <?php if ( get_option( $fhrsam_conf_var["show_preview"] ) ) { ?>
       <div class="fhrsam_plugin_row"><span class="label">Preview:</span><span class="sepa">&nbsp;</span><span class="formw"><?php disp_song_preview( $the_song ); ?></span></div>
     <?php } ?>
-    <br/>
-    <b>Lyrics:</b>
-    <?php disp_song_lyrics( $the_song["lyrics"] ); ?>
-    <?php disp_lyrics_disc( ); ?>
   </div>
   <br style="clear: both;" />
   <br style="clear: both;" />

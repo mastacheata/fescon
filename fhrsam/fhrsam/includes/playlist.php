@@ -55,6 +55,8 @@ function fhrsamPlaylist()
   {
     if ( $counter == 0 )
     {
+	echo is_dir('D:\') ? 'JA' : 'NOE';
+
       ?>Artist begins with <a href="?mode=1&amp;id=27">#</a><?php
     }
     else

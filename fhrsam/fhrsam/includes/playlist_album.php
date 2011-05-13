@@ -51,7 +51,6 @@
     <div style="text-align: center;"><?php _e( $buy_fromAmazon ); ?></div>
     <hr/>
     <b>Genre:</b> <?php _e( $genre1[0] ); ?>
-    <?php ( count( $genre2 ) > 0 ) ? disp_genres( $genre2 ) : _e( "n/a" ); ?>
   </div>
   <div id="fhrsam_plugin_col_two">
     <div class="fhrsam_plugin_row"><span class="label">Artist:</span><span class="sepa">&nbsp;</span><span class="formw"><?php gen_artist_link( $song_info ); ?></span></div>

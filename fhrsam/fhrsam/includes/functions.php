@@ -68,7 +68,9 @@ function gen_song_link( $the_array )
 {
   global $fhrsam_conf_var;
 
-  _e( '<a href="' . get_page_link( get_option( $fhrsam_conf_var["page_id_playlist"] ) ) . '?mode=4&amp;id=' . $the_array["id"] . '" title="View ' . esc_html( $the_array["title"] ) . ' info from ' . esc_html( $the_array["album"] ) . ' by ' . esc_html( $the_array["artist"] ) . '">' . esc_html( $the_array["title"] ) . '</a>' );
+  $the_id = $the_array["ID"].$the_array["id"];
+  
+  _e( '<a href="' . get_page_link( get_option( $fhrsam_conf_var["page_id_playlist"] ) ) . '?mode=4&amp;id=' . $the_id . '" title="View ' . esc_html( $the_array["title"] ) . ' info from ' . esc_html( $the_array["album"] ) . ' by ' . esc_html( $the_array["artist"] ) . '">' . esc_html( $the_array["title"] ) . '</a>' );
 }
 
 function gen_request_link( $the_array, $small_image = false )
@@ -94,7 +96,7 @@ function gen_request_link( $the_array, $small_image = false )
           $custom_template = ", " . $song_requester_id;
         }
       }
-      _e( '<a href="javascript:fhrsam_requests( ' . $the_array["id"] . ', \'' . get_option( $fhrsam_conf_var["sam_host"] ) . '\', ' . get_option( $fhrsam_conf_var["sam_port"] ) . $custom_template . ' );"><img src="' . plugins_url( 'fhrsam/media/' . ( ( $small_image ) ? 'r.png' : 'request.png' ) ) . '" title="request" alt="request"/></a>' );
+      _e( '<a href="javascript:fhrsam_requests( ' . $the_array["ID"] . ', \'' . get_option( $fhrsam_conf_var["sam_host"] ) . '\', ' . get_option( $fhrsam_conf_var["sam_port"] ) . $custom_template . ' );"><img src="' . plugins_url( 'fhrsam/media/' . ( ( $small_image ) ? 'r.png' : 'request.png' ) ) . '" title="request" alt="request"/></a>' );
     }
   }
 }
@@ -117,7 +119,7 @@ function disp_song_preview( $the_array )
 
   if( get_option( $fhrsam_conf_var["show_preview"] ) )
   {
-    _e( '<object type="application/x-shockwave-flash" data="' . plugins_url( 'fhrsam/media/player.swf' ) . '" id="audioplayer' . $the_array["id"] . '" height="24" width="250"><param name="movie" value="' . plugins_url( 'fhrsam/media/player.swf' ) . '"><param name="FlashVars" value="playerID=' . $the_array["id"] . '&amp;bg=0xf8f8f8&amp;leftbg=0xeeeeee&amp;lefticon=0x666666&amp;rightbg=0xcccccc&amp;rightbghover=0x999999&amp;righticon=0x666666&amp;righticonhover=0xFFFFFF&amp;text=0x666666&amp;slider=0x666666&amp;track=0xFFFFFF&amp;border=0x666666&amp;loader=0x9FFFB8&amp;soundFile=../../' . $the_array["preview"] . '"><param name="quality" value="high"><param name="menu" value="false"><param name="wmode" value="transparent"></object>' );
+    _e( '<object type="application/x-shockwave-flash" data="' . plugins_url( 'fhrsam/media/player.swf' ) . '" id="audioplayer' . $the_array["ID"] . '" height="24" width="250"><param name="movie" value="' . plugins_url( 'fhrsam/media/player.swf' ) . '"><param name="FlashVars" value="playerID=' . $the_array["ID"] . '&amp;bg=0xf8f8f8&amp;leftbg=0xeeeeee&amp;lefticon=0x666666&amp;rightbg=0xcccccc&amp;rightbghover=0x999999&amp;righticon=0x666666&amp;righticonhover=0xFFFFFF&amp;text=0x666666&amp;slider=0x666666&amp;track=0xFFFFFF&amp;border=0x666666&amp;loader=0x9FFFB8&amp;soundFile=../../' . $the_array["preview"] . '"><param name="quality" value="high"><param name="menu" value="false"><param name="wmode" value="transparent"></object>' );
   }
 }
 
